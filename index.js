@@ -43,6 +43,11 @@ async function run() {
       .db("manufacturer_db")
       .collection("products");
 
+    const orderCollection = client.db("manufacturer_db").collection("order");
+    const paymentCollection = client
+      .db("manufacturer_db")
+      .collection("payments");
+
     const verifyAdmin = async (req, res, next) => {
       const requester = req.decoded.email;
       const requesterAccount = await userCollection.findOne({
@@ -140,6 +145,93 @@ async function run() {
 
       const result = await productCollection.deleteOne(query);
       res.send(result);
+    });
+
+    app.post("/order", async (req, res) => {
+      const order = req.body;
+      const query = {
+        treatment: booking.treatment,
+        date: booking.date,
+        patient: booking.patient,
+      };
+      const exists = await bookingCollection.findOne(query);
+      if (exists) {
+        return res.send({ success: false, booking: exists });
+      }
+      const result = await orderCollection.insertOne(order);
+      console.log("sending email");
+      // sendAppointmentEmail(booking);
+      return res.send({ success: true, result });
+    });
+
+    app.patch("/order/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const payments = req.body;
+      console.log(id, payments);
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payments.transactionId,
+        },
+      };
+
+      const result = await paymentCollection.insertOne(payments);
+      const updatedOrder = await orderCollection.updateOne(filter, updatedDoc);
+      res.send(updatedOrder);
+    });
+
+    app.get("/order", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      // console.log(email);
+      const decodedEmail = req.decoded.email;
+      // console.log(decodedEmail);
+
+      if (email === decodedEmail) {
+        const query = { user: email };
+        const order = await orderCollection.find(query).toArray();
+        // console.log(order);
+
+        return res.send(order);
+      } else {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+    });
+    app.get("/order/:id", async (req, res) => {
+      const id = req.params.id;
+      // console.log(email);
+      // const decodedEmail = req.decoded.email;
+      // console.log(decodedEmail);
+
+      // if (email === decodedEmail) {
+      const query = { _id: ObjectId(id) };
+      const orderone = await orderCollection.findOne(query);
+      console.log(orderone);
+
+      res.send(orderone);
+      // } else {
+      // return res.status(403).send({ message: "forbidden access" });
+      // }
+    });
+
+    app.put("/order/:id", async (req, res) => {
+      const order = req.body;
+      // console.log(order);
+      const query = {
+        productid: order.productid,
+        product: order.product,
+        username: order.ussrname,
+        email: order.user,
+        quantity: order.quantity,
+        price: order.price,
+      };
+      const exists = await orderCollection.findOne(query);
+      if (exists) {
+        return res.send({ success: false, order: exists });
+      }
+      const result = await orderCollection.insertOne(order.order);
+
+      return res.send({ success: true, result });
     });
   } finally {
     //await client.close();
