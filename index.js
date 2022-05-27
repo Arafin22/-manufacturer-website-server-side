@@ -122,6 +122,25 @@ async function run() {
       const product = await productCollection.findOne(query);
       res.send(product);
     });
+
+    app.post("/product", verifyJWT, verifyAdmin, async (req, res) => {
+      const product = req.body;
+
+      const result = await productCollection.insertOne(product);
+      // res.send({ success: "Product Upload Successfully" });
+      // } else {
+      res.send({ success: "Authorize" });
+      // }
+    });
+
+    app.delete("/product/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const email = req.params.id;
+      // const filter = { email: email };
+      const query = { _id: ObjectId(id) };
+
+      const result = await productCollection.deleteOne(query);
+      res.send(result);
+    });
   } finally {
     //await client.close();
   }
